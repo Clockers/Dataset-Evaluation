@@ -14,26 +14,18 @@ import os
 path_original = './datasets/original/'
 path_generated = './datasets/generated/'
 path_results = './datasets/results/'
-# number of evaluation phases
-num_evals = 1
-# tolerance tol
-tol = 0.001
 
 verbose = True
 
 
 def get_datasets():
-    return list(filter(lambda file: file.endswith('.csv'), os.listdir(path_original)))
+    return list(filter(lambda file: file.endswith('.csv'), os.listdir(path_generated)))
 
 
-datasets_original = get_datasets()
+datasets = get_datasets()
 
-#algorithms = ['RandomForest100']
 algorithms = ['RandomForest100', 'RandomForest30', 'KNeighbors30', 'KNeighbors1', 'AdaBoost30', 'AdaBoost10',
-              'LinearDiscriminantAnalysis', 'LogisticRegression', 'GradientBoosting']
-
-#algorithms = ['RandomForest100', 'RandomForest30', 'KNeighbors30', 'KNeighbors1', 'AdaBoost30', 'AdaBoost10',
-#              'SVC', 'SVR', 'LinearDiscriminantAnalysis', 'LogisticRegression', 'GradientBoosting']
+              'SVC', 'LinearDiscriminantAnalysis', 'GradientBoosting', 'SVR', 'LogisticRegression']
 
 result_columns = ['Algorithm', 'Accuracy', 'Precision', 'Recall', 'F1-Score', 'MCC']
 result_columns_dataset = ['Dataset', 'Algorithm', 'Accuracy', 'Precision', 'Recall', 'F1-Score', 'MCC']
@@ -41,21 +33,12 @@ result_columns_dataset = ['Dataset', 'Algorithm', 'Accuracy', 'Precision', 'Reca
 
 def main():
 
-
-    for dataset in datasets_original:
+    for dataset in datasets:
 
         results_classification_real = None
         results_classification_synth = None
         results_detection = None
         results_similarity = None
-        sampled_data = None
-
-        results_classification_error_old = [math.inf] * len(algorithms)
-        results_classification_error_new = None
-        results_detection_error_old = [math.inf] * len(algorithms)
-        results_detection_error_new = None
-        results_similarity_error_old = [math.inf] * 2
-        results_similarity_error_new = None
 
         real_data = pandas.read_csv(path_original + dataset)
         real_data = remove_columns(real_data, dataset)
@@ -71,7 +54,11 @@ def main():
 
         train_real, test_real = split_dataset(real_data, 0.7)
         classification_real = evaluate_classification(train_real, test_real)
+        print(dataset)
+        print(classification_real)
         classification_synth = evaluate_classification(real_data, sampled_data)
+
+        print(classification_synth)
         detection = evaluate_detection(real_data, sampled_data)
         # similarity = evaluate_similarity(real_data, sampled_data)
 
@@ -95,47 +82,12 @@ def main():
         else:
             results_detection = results_detection.append(pandas.DataFrame(detection),
                                                          ignore_index=True)
-        # if results_similarity is None:
-        #    results_similarity = pandas.DataFrame(similarity)
-        # else:
-        #    results_similarity = results_similarity.append(pandas.DataFrame(similarity),
-        #                                                           ignore_index=True)
-        # Classification error
-        #error = 0
-        #results_classification_error_new = classification['Accuracy']
-        #for u in range(0, len(results_classification_error_old)):
-        #    results_classification_error_old[u] = results_classification_error_new[u] - \
-        #                                          results_classification_error_old[u]
-        #    if abs(results_classification_error_old[u]) < tol:
-        #        error += 1
-        #if error == len(results_classification_error_old):
-        #    print('Evaluation ' + str(k) + 'Classification perfect in ' + 'Accuracy')
-        #results_classification_error_old = results_classification_error_new
-
-        # Detection error
-        #error = 0
-        #results_detection_error_new = detection['Accuracy']
-        #for o in range(0, len(results_detection_error_old)):
-        #    results_detection_error_old[o] = results_detection_error_new[o] - \
-        #                                     results_detection_error_old[o]
-        #    if abs(results_detection_error_old[o]) < tol:
-        #        error += 1
-        #if error == len(results_detection_error_old):
-        #    print('Evaluation ' + str(k) + 'Detection perfect in ' + 'Accuracy')
-        #results_detection_error_old = results_detection_error_new
-
-        # Similarity error
-        # results_similarity_error_new = similarity['Result']
-        # results_similarity_error_old[0] = results_similarity_error_new[0] - results_similarity_error_old[0]
-        # results_similarity_error_old[1] = results_similarity_error_new[1] - results_similarity_error_old[1]
-        # if abs(results_similarity_error_old[0]) < tol and abs(results_similarity_error_old[1]) < tol:
-        #    print('Evaluation ' + str(k) + ':Similarity perfect')
-        # results_similarity_error_old = results_similarity_error_new
 
         results_classification_real.to_csv(path_results + dataset + 'ClassificationRealEval.csv', index=False)
         results_classification_synth.to_csv(path_results + dataset + 'ClassificationSynthEval.csv', index=False)
         results_detection.to_csv(path_results + dataset + 'DetectionEval.csv', index=False)
         # results_similarity.to_csv(path_results + dataset +  'SimilarityEval.csv', index=False)
+
     print('Result saved Eval')
 
 
@@ -178,8 +130,6 @@ def get_classifier(classifier_name):
 
 
 def remove_columns(data, name):
-    # print(data.isnull().values.any())
-
     if name == 'ADFANet_Shuffled.csv':
         data.drop('Time1', inplace=True, axis=1)
         data.drop('Time2', inplace=True, axis=1)
@@ -233,9 +183,6 @@ def remove_str_columns(data, name):
         data.drop('IP_2', inplace=True, axis=1)
         data.drop('AttCat', inplace=True, axis=1)
         data = data.fillna('Empty')
-
-    #elif name == 'AndMal_Shuffled.csv':
-    #elif name == 'CICIDS17_Shuffled_Reduced.csv':
 
     elif name == 'CICIDS18_Reduced.csv':
         data.drop('Timestamp', inplace=True, axis=1)
@@ -293,7 +240,6 @@ def evaluate_classification(real_data, sampled_data):
 
     for algorithm in algorithms:
         result = []
-        print(algorithm)
         classifier = get_classifier(algorithm)
         classifier.fit(x_train, y_train)
         y_pred = classifier.predict(x_test)
@@ -355,13 +301,11 @@ def evaluate_detection(real_data, sampled_data):
 
     return results
 
-
 # Categorical or boolean columns for CSTest and numerical columns for KSTest
 # def evaluate_similarity(real_data, sampled_data):
 #    results = pandas.DataFrame([['KSTest', KSTest.compute(real_data, sampled_data)]], columns=['Algorithm', 'Result'])
 #    results = results.append(pandas.DataFrame([['CSTest', CSTest.compute(real_data, sampled_data)]], columns=['Algorithm', 'Result']), ignore_index=True)
 #    return results
-
 
 if __name__ == "__main__":
     main()
