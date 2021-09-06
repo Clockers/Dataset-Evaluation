@@ -7,7 +7,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.svm import SVC, SVR
+from sklearn.neural_network import MLPClassifier
+
+from sklearn.svm import SVC
 import os
 
 # data folder : datasets for evaluation
@@ -15,17 +17,15 @@ path_original = './datasets/original/'
 path_generated = './datasets/generated/'
 path_results = './datasets/results/'
 
-verbose = True
-
 
 def get_datasets():
     return list(filter(lambda file: file.endswith('.csv'), os.listdir(path_generated)))
 
-
 datasets = get_datasets()
 
-algorithms = ['RandomForest100', 'RandomForest30', 'KNeighbors30', 'KNeighbors1', 'AdaBoost30', 'AdaBoost10',
-              'SVC', 'LinearDiscriminantAnalysis', 'GradientBoosting', 'SVR', 'LogisticRegression']
+algorithms = ['RandomForest100', 'RandomForest30', 'KNeighbors35', 'KNeighbors1', 'AdaBoost100', 'AdaBoost30',
+              'LinearDiscriminantAnalysis', 'GradientBoosting', 'MLP', 'LogisticRegression']
+
 
 result_columns = ['Algorithm', 'Accuracy', 'Precision', 'Recall', 'F1-Score', 'MCC']
 result_columns_dataset = ['Dataset', 'Algorithm', 'Accuracy', 'Precision', 'Recall', 'F1-Score', 'MCC']
@@ -34,11 +34,9 @@ result_columns_dataset = ['Dataset', 'Algorithm', 'Accuracy', 'Precision', 'Reca
 def main():
 
     for dataset in datasets:
-
         results_classification_real = None
         results_classification_synth = None
         results_detection = None
-        results_similarity = None
 
         real_data = pandas.read_csv(path_original + dataset)
         real_data = remove_columns(real_data, dataset)
@@ -54,18 +52,11 @@ def main():
 
         train_real, test_real = split_dataset(real_data, 0.7)
         classification_real = evaluate_classification(train_real, test_real)
-        print(dataset)
-        print(classification_real)
         classification_synth = evaluate_classification(real_data, sampled_data)
-
-        print(classification_synth)
         detection = evaluate_detection(real_data, sampled_data)
-        # similarity = evaluate_similarity(real_data, sampled_data)
-
         classification_real.insert(0, 'Dataset', dataset)
         classification_synth.insert(0, 'Dataset', dataset)
         detection.insert(0, 'Dataset', dataset)
-        # similarity.insert(0, 'Dataset', dataset)
 
         if results_classification_real is None:
             results_classification_real = pandas.DataFrame(classification_real)
@@ -86,7 +77,6 @@ def main():
         results_classification_real.to_csv(path_results + dataset + 'ClassificationRealEval.csv', index=False)
         results_classification_synth.to_csv(path_results + dataset + 'ClassificationSynthEval.csv', index=False)
         results_detection.to_csv(path_results + dataset + 'DetectionEval.csv', index=False)
-        # results_similarity.to_csv(path_results + dataset +  'SimilarityEval.csv', index=False)
 
     print('Result saved Eval')
 
@@ -95,28 +85,25 @@ def split_dataset(dataset: DataFrame, percent: float):
     split_index = math.ceil(len(dataset) * percent)
     train = dataset[0: split_index]
     test = dataset[split_index: len(dataset)]
-
     return train, test
 
 
 def get_classifier(classifier_name):
     classifier = None
-    if classifier_name == 'RandomForest100':
-        classifier = RandomForestClassifier(n_estimators=100)
-    elif classifier_name == 'RandomForest30':
-        classifier = RandomForestClassifier(n_estimators=30)
-    elif classifier_name == 'KNeighbors30':
-        classifier = KNeighborsClassifier(n_neighbors=30)
+    if classifier_name == 'RandomForest105':
+        classifier = RandomForestClassifier(n_estimators=105)
+    elif classifier_name == 'RandomForest35':
+        classifier = RandomForestClassifier(n_estimators=35)
+    elif classifier_name == 'KNeighbors35':
+        classifier = KNeighborsClassifier(n_neighbors=35)
     elif classifier_name == 'KNeighbors1':
         classifier = KNeighborsClassifier(n_neighbors=1)
-    elif classifier_name == 'AdaBoost30':
-        classifier = AdaBoostClassifier(n_estimators=30)
-    elif classifier_name == 'AdaBoost10':
-        classifier = AdaBoostClassifier(n_estimators=10)
-    elif classifier_name == 'SVC':
-        classifier = SVC(kernel='poly', degree=2)
-    elif classifier_name == 'SVR':
-        classifier = SVR(kernel='poly', degree=2)
+    elif classifier_name == 'AdaBoost105':
+        classifier = AdaBoostClassifier(n_estimators=105)
+    elif classifier_name == 'AdaBoost35':
+        classifier = AdaBoostClassifier(n_estimators=35)
+    elif classifier_name == 'MLP':
+        classifier = MLPClassifier()
     elif classifier_name == 'LinearDiscriminantAnalysis':
         classifier = LinearDiscriminantAnalysis()
     elif classifier_name == 'LogisticRegression':
@@ -207,8 +194,6 @@ def remove_str_columns(data, name):
 
     elif name == 'NGDIS_Shuffled.csv':
         data.drop('Detail', inplace=True, axis=1)
-        data.drop('Tag_Detail', inplace=True, axis=1)
-        data.drop('Label', inplace=True, axis=1)
 
     elif name == 'NSLKDD_All.csv':
         data.drop('protocol_type', inplace=True, axis=1)
@@ -223,7 +208,6 @@ def remove_str_columns(data, name):
         data.drop('proto', inplace=True, axis=1)
         data.drop('service', inplace=True, axis=1)
         data.drop('state', inplace=True, axis=1)
-        data.drop('label', inplace=True, axis=1)
 
     return data
 
